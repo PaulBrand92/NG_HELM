@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.Name }}-{{ .Values.Version }}
+  labels:
+    app: {{ .Values.Name }}
+    version: {{ .Values.Version }}
+spec:
+  ports:
+    - targetPort: 5000
+      port: 5000
+      protocol: TCP
+      name: 5000tcp
+    - targetPort: 80
+      port: 80
+      protocol: TCP
+      name: 80tcp
+  selector:
+    app: {{ .Values.Name }}
+    version: {{ .Values.Version }}
+  type: ClusterIP      

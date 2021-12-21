@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.Name }}-{{ .Values.Version }}
+  labels:
+    app: {{ .Values.Name }}
+    version: {{ .Values.Version }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.Name }}
+      version: {{ .Values.Version }}
+  template:
+    metadata:
+      annotations:
+        {{ .Values.LinkerdSkip }}
+      labels:
+        app: {{ .Values.Name }}
+        version: {{ .Values.Version }}
+    spec:
+      containers:
+      - env:
+        - name: DD_AGENT_HOST # DD_AGENT_HOST is needed for DataDog and cannot be moved to configMaps because it requires fieldRef status.hostIP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: AppSettings__LoggerKafkaCACertificatePEM
+          valueFrom:
+            secretKeyRef:
+              key: kafka-cert
+              name: kafka-cert
+              optional: false
+        - name: KafkaConfiguration__Connections__0__CACertificatePEM
+          valueFrom:
+            secretKeyRef:
+              key: kafka-cert
+              name: kafka-cert
+              optional: false
+        envFrom:
+        - configMapRef:
+            name: env-config-tier1-{{ .Values.Version }}
+        {{- if .Values.CustomConfigName }}      
+        - configMapRef:
+            name: {{ .Values.CustomConfigName }}-{{ .Values.Version }}
+        {{- end }}                                             
+        name: {{ .Values.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh","-c","sleep 20"]        
+        ports:
+          - containerPort: 5000
+            name: 5000tcp
+            protocol: TCP
+          - containerPort: 80
+            name: 80tcp
+            protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: 80
+          failureThreshold: 2
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /health/liveness
+            port: 80
+          failureThreshold: 4
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 30
+      imagePullSecrets:
+        - name: neo-registry

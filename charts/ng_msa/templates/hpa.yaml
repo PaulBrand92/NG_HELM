@@ -1,0 +1,23 @@
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  annotations:
+    field.cattle.io/displayName: {{ .Values.Name }}-hpa-{{ .Values.Version }}
+  labels:
+    app: {{ .Values.Name }}
+    version: {{ .Values.Version }}
+  name: {{ .Values.Name }}-hpa-{{ .Values.Version }}
+spec:
+  minReplicas: {{ .Values.minHPAreplicas }}
+  maxReplicas: {{ .Values.maxHPAreplicas }}
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 70
+        type: Utilization
+    type: Resource
+  scaleTargetRef:
+    apiVersion: apps/v1beta2
+    kind: Deployment
+    name: {{ .Values.Name }}-{{ .Values.Version }}
